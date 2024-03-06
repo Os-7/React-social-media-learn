@@ -1,9 +1,9 @@
-import { createContext, useReducer } from "react";
+import { createContext, useReducer, useState, useEffect } from "react";
 
 export const PostList = createContext({
   postList: [],
+  fetching: false,
   addPost: () => {},
-  addInitialPosts: () => {},
   deletePost: () => {},
 });
 
@@ -15,26 +15,21 @@ const postListReducer = (currPostList, action) => {
     );
   } else if (action.type === "ADD_POST") {
     newPostist = [action.payload, ...currPostList];
-  }else if(action.type === "ADD_INITIAL_POST"){
-    newPostist = action.payload.posts
+  } else if (action.type === "ADD_INITIAL_POST") {
+    newPostist = action.payload.posts;
   }
   return newPostist;
 };
 
 const PostListProvider = ({ children }) => {
   const [postList, DispatchPostList] = useReducer(postListReducer, []);
+  
+  const [fetching, setFetching] = useState(false);
 
-  const addPost = (userId, postTitle, postBody, reaction, tags) => {
+  const addPost = (post) => {
     DispatchPostList({
       type: "ADD_POST",
-      payload: {
-        id: Date.now(),
-        title: postTitle,
-        body: postBody,
-        reaction: reaction,
-        userID: userId,
-        tags: tags,
-      },
+      payload: post,
     });
   };
 
@@ -42,7 +37,7 @@ const PostListProvider = ({ children }) => {
     DispatchPostList({
       type: "ADD_INITIAL_POST",
       payload: {
-        posts: posts
+        posts: posts,
       },
     });
   };
@@ -56,8 +51,28 @@ const PostListProvider = ({ children }) => {
     });
   };
 
+  useEffect(() => {
+    setFetching(true);
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    fetch("https://dummyjson.com/posts", { signal })
+      .then((res) => res.json())
+      .then((data) => {
+        addInitialPosts(data.posts);
+        setFetching(false);
+      });
+
+      return () => {
+        controller.abort();
+      }
+  },[]);
+
   return (
-    <PostList.Provider value={{ postList, addPost, addInitialPosts, deletePost }}>
+    <PostList.Provider
+      value={{ postList, fetching, addPost, deletePost }}
+    >
       {children}
     </PostList.Provider>
   );
